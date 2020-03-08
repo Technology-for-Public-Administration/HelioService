@@ -106,7 +106,7 @@ public class Pbft {
          * Nothing to do, because we just want to acquire ws of client.
          * When the client requests this node through the p2pclientend class, we have obtained the WS of the client.
          */
-        System.out.println(SocketCache.wss.size());
+        System.out.println("Current P2P network metadata: " + SocketCache.getMeta().toString());
     }
 
     /**
