@@ -2,12 +2,13 @@ package tech.feily.unistarts.heliostration.helioservice.p2p;
 
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.Logger;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
+import tech.feily.unistarts.heliostration.helioservice.model.PbftMsgModel;
 import tech.feily.unistarts.heliostration.helioservice.pbft.Pbft;
+import tech.feily.unistarts.heliostration.helioservice.utils.SystemUtil;
 
 /**
  * The server program of P2P node.
@@ -16,8 +17,6 @@ import tech.feily.unistarts.heliostration.helioservice.pbft.Pbft;
  * @version v0.1
  */
 public class P2pServerEnd {
-
-    private static Logger log = Logger.getLogger(P2pServerEnd.class);
     
     /**
      * The method of starting node service in P2P network(as server).
@@ -30,19 +29,16 @@ public class P2pServerEnd {
 
             @Override
             public void onOpen(WebSocket ws, ClientHandshake handshake) {
-                SocketCache.wss.add(ws);
+                if (!SocketCache.wss.contains(ws)) {
+                    SocketCache.wss.add(ws);
+                }
             }
 
             @Override
             public void onClose(WebSocket ws, int code, String reason, boolean remote) {
                 /**
-                 * Active node minus one after disconnection.
+                 * In order to preventing metadata of the P2P network from decreasing repeatly, nothing to do here.
                  */
-                if (SocketCache.wss.contains(ws)) {
-                    SocketCache.minusAndGet();
-                    SocketCache.wss.remove(ws);
-                }
-                System.out.println(SocketCache.getMeta());
             }
 
             @Override
@@ -53,24 +49,23 @@ public class P2pServerEnd {
             @Override
             public void onError(WebSocket ws, Exception ex) {
                 /**
-                 * Active node minus one after occuring error.
+                 * In order to preventing metadata of the P2P network from decreasing repeatly, nothing to do here.
                  */
-                if (SocketCache.wss.contains(ws)) {
-                    SocketCache.minusAndGet();
-                    SocketCache.wss.remove(ws);
-                }
-                System.out.println(SocketCache.getMeta());
-                log.info("Client connection error!" + ex.getMessage());
             }
 
             @Override
             public void onStart() {
-                log.info("Server start successfully!");
+                //log.info("Server start successfully!");
+                System.out.println("Server start successfully!");
+                System.out.println("------------------------------------------------------------------------------------");
+                SystemUtil.printHead();
             }
             
         };
         socketServer.start();
-        log.info("server listen port " + port);
+        //log.info("server listen port " + port);
+        System.out.println("Service node starting...");
+        System.out.println("server listen port " + port);
     }
     
     /**
@@ -79,10 +74,9 @@ public class P2pServerEnd {
      * @param ws - websocket
      * @param msg - Messages to send.
      */
-    public static void sendMsg(WebSocket ws, String msg) {
-        log.info("To " + ws.getRemoteSocketAddress().getAddress().toString() + ":"
-                + ws.getRemoteSocketAddress().getPort() + " : " + msg.toString());
+    public static void sendMsg(WebSocket ws, String msg, PbftMsgModel pm) {
         ws.send(msg);
+        SystemUtil.printlnOut(pm);
     }
     
     /**
@@ -90,15 +84,13 @@ public class P2pServerEnd {
      * 
      * @param msg - Messages to send.
      */
-    public static void broadcasts(String msg) {
+    public static void broadcasts(String msg, PbftMsgModel pm) {
         if (SocketCache.wss.size() == 0 || msg == null || msg.equals("")) {
             return;
         }
-        log.info("Glad to say broadcast to clients being startted!");
         for (WebSocket ws : SocketCache.wss) {
-            sendMsg(ws, msg);
+            sendMsg(ws, msg, pm);
         }
-        log.info("Glad to say broadcast to clients being overred!");
     }
 
 }
