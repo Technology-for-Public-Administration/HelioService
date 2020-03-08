@@ -8,9 +8,7 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
-import tech.feily.unistarts.heliostration.helioservice.model.FileWriterModel;
 import tech.feily.unistarts.heliostration.helioservice.pbft.Pbft;
-import tech.feily.unistarts.heliostration.helioservice.utils.FileUtil;
 
 /**
  * The client program of P2P node.
@@ -27,20 +25,12 @@ public class P2pClientEnd {
      * 
      * @param wsUrl - server's url.
      */
-    public static void connect(final Pbft pbft, String wsUrl, final String msg, final String mapper, final int port, final boolean flag) {
+    public static void connect(final Pbft pbft, String wsUrl, final String msg, final int port) {
         try {
             final WebSocketClient socketClient = new WebSocketClient(new URI(wsUrl)) {
 
                 @Override
                 public void onOpen(ServerHandshake handshakedata) {
-                    /**
-                     * Write port mapping information to a file.
-                     */
-                    if (flag == true) {
-                        FileWriterModel fm = FileUtil.openForW(mapper);
-                        FileUtil.write(port + "=" + this.getLocalSocketAddress().getPort() + "\n", fm);
-                        FileUtil.closeForW(fm);
-                    }
                     sendMsg(this, msg);
                 }
 

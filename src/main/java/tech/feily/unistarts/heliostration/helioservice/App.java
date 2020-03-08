@@ -16,16 +16,16 @@ import tech.feily.unistarts.heliostration.helioservice.pbft.Pbft;
 public class App {
     
     public static void main( String[] args ) {
-        String file = "C:\\Users\\fei47\\Desktop\\mapper.txt";
         int port = 7002;
-        Pbft pbft = new Pbft(file, port);
+        Pbft pbft = new Pbft(port);
         ServerNodeModel ser = new ServerNodeModel();
         ser.setServerId("123456");
         ser.setServerKey("789123");
         PbftMsgModel msg = new PbftMsgModel();
         msg.setMsgType(MsgEnum.init);
         msg.setServer(ser);
-        P2pClientEnd.connect(pbft, "ws://localhost:7001", new Gson().toJson(msg), file, port, true);
+        P2pClientEnd.connect(pbft, "ws://localhost:7001", new Gson().toJson(msg), port);
         P2pServerEnd.run(pbft, port);
     }
 }
+

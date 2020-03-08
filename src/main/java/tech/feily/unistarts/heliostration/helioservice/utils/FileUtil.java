@@ -65,7 +65,6 @@ public class FileUtil {
             while ((line = fm.getBr().readLine()) != null) {
                 if (line.split("=")[1].equals(port)) {
                     rt = line.split("=")[0];
-                    break;
                 }
             }
         } catch (IOException e) {

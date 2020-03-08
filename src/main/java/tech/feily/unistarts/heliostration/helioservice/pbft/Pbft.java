@@ -8,29 +8,25 @@ import org.java_websocket.WebSocket;
 import com.google.gson.Gson;
 
 import tech.feily.unistarts.heliostration.helioservice.model.AddrPortModel;
-import tech.feily.unistarts.heliostration.helioservice.model.FileReaderModel;
 import tech.feily.unistarts.heliostration.helioservice.model.MsgEnum;
 import tech.feily.unistarts.heliostration.helioservice.model.PbftMsgModel;
 import tech.feily.unistarts.heliostration.helioservice.p2p.P2pClientEnd;
 import tech.feily.unistarts.heliostration.helioservice.p2p.P2pServerEnd;
 import tech.feily.unistarts.heliostration.helioservice.p2p.SocketCache;
-import tech.feily.unistarts.heliostration.helioservice.utils.FileUtil;
 
 public class Pbft {
 
     private Logger log = Logger.getLogger(Pbft.class);
     private Gson gson = new Gson();
-    private String file;
     private int port;
     /**
      * The Pbft of the service node does not need to be initialized,
      * because the necessary cache information needs to be.
      */
-    public Pbft(String file, int port) {
+    public Pbft(int port) {
         /**
          * Nothing to do.
          */
-        this.file = file;
         this.port = port;
     }
     
@@ -39,7 +35,10 @@ public class Pbft {
                 + ws.getRemoteSocketAddress().getPort() + ", message is " + msg);
         PbftMsgModel msgs = gson.fromJson(msg, PbftMsgModel.class);
         switch (msgs.getMsgType()) {
-            case detective :
+            case note :
+                onNote(ws, msgs);
+                break;
+            case detective:
                 onDetective(ws, msgs);
                 break;
             case confirm :
@@ -54,6 +53,12 @@ public class Pbft {
             default :
                 break;
         }
+    }
+
+    private void onDetective(WebSocket ws, PbftMsgModel msgs) {
+        PbftMsgModel msg = new PbftMsgModel();
+        msg.setMsgType(MsgEnum.confirm);
+        P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), port);
     }
 
     private void onService(WebSocket ws, PbftMsgModel msgs) {
@@ -83,6 +88,10 @@ public class Pbft {
         PbftMsgModel toRoot = new PbftMsgModel();
         toRoot.setMsgType(MsgEnum.service);
         toRoot.setServer(SocketCache.getMyself());
+        AddrPortModel ap = new AddrPortModel();
+        ap.setAddr(ws.getLocalSocketAddress().getAddress().toString());
+        ap.setPort(port);
+        toRoot.setAp(ap);
         P2pServerEnd.sendMsg(ws, gson.toJson(toRoot));
     }
 
@@ -97,6 +106,7 @@ public class Pbft {
          * Nothing to do, because we just want to acquire ws of client.
          * When the client requests this node through the p2pclientend class, we have obtained the WS of the client.
          */
+        System.out.println(SocketCache.wss.size());
     }
 
     /**
@@ -105,30 +115,24 @@ public class Pbft {
      * @param ws
      * @param msgs
      */
-    private void onDetective(WebSocket ws, PbftMsgModel msgs) {
+    private void onNote(WebSocket ws, PbftMsgModel msgs) {
         /**
          * We should first verify whether the detective message comes from the root node, and temporarily omit it.
          */
         /**
          * Send probe information to the specified address (client).
          */
-        System.out.println(msgs.getAp().toString());
+        if (msgs.getAp().getAddr().equals(ws.getLocalSocketAddress().getAddress().toString())
+                && msgs.getAp().getPort() == port) {
+            return;
+        }
         PbftMsgModel msg = new PbftMsgModel();
         msg.setMsgType(MsgEnum.detective);
         AddrPortModel ap = new AddrPortModel();
         ap.setAddr(ws.getLocalSocketAddress().getAddress().toString());
-        ap.setPort(ws.getLocalSocketAddress().getPort());
+        ap.setPort(port);
         msg.setAp(ap);
-        FileReaderModel fm = FileUtil.openForR(file);
-        Integer pt = msgs.getAp().getPort();
-        String pot = FileUtil.selectByPort(fm, pt.toString());
-        Integer por = Integer.valueOf(pot);
-        System.out.println(por == port);
-        if (por == port) {
-            return;
-        }
-        P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + por.toString(), gson.toJson(msg), file, port, false);
-        FileUtil.closeForR(fm);
+        P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), port);
     }
 
 }
