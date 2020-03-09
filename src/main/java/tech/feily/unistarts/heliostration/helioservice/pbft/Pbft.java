@@ -225,7 +225,7 @@ public class Pbft {
         toRoot.setMsgType(MsgEnum.service);
         toRoot.setServer(SocketCache.getMyself());
         toRoot.setAp(ap);
-        P2pServerEnd.sendMsg(ws, gson.toJson(toRoot), msgs);
+        P2pServerEnd.sendMsg(ws, gson.toJson(toRoot), toRoot);
     }
 
     /**
