@@ -3,7 +3,6 @@ package tech.feily.unistarts.heliostration.helioservice.p2p;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.apache.log4j.Logger;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -21,7 +20,7 @@ import tech.feily.unistarts.heliostration.helioservice.utils.SystemUtil;
  */
 public class P2pClientEnd {
 
-    private static Logger log = Logger.getLogger(P2pClientEnd.class);
+    //private static Logger log = Logger.getLogger(P2pClientEnd.class);
     
     /**
      * Client connects to a server.
@@ -58,7 +57,9 @@ public class P2pClientEnd {
             };
             socketClient.connect();
         } catch (URISyntaxException e) {
-            log.info("URISyntaxException : " + e.getMessage());
+            PbftMsgModel psm = new PbftMsgModel();
+            psm.setMsgType(MsgEnum.exception);
+            SystemUtil.printlnClientCloseOrError(psm, wsUrl);
         }
     }
 
