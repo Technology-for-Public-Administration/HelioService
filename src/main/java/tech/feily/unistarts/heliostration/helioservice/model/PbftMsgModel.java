@@ -2,13 +2,21 @@ package tech.feily.unistarts.heliostration.helioservice.model;
 
 import java.util.List;
 
+/**
+ * Message entity class of PBFT algorithm in the P2P network.
+ * 
+ * @author Feily Zhang
+ * @version v0.1
+ */
 public class PbftMsgModel {
 
     private MsgEnum msgType;
+    private ClientNodeModel client;
     private ServerNodeModel server;
     private AddrPortModel ap;
     private MetaModel meta;
     private List<ServerNodeModel> listServer;
+    private PbftContentModel pcm;
     
     /**
      * @return the msgType
@@ -21,6 +29,19 @@ public class PbftMsgModel {
      */
     public void setMsgType(MsgEnum msgType) {
         this.msgType = msgType;
+    }
+    
+    /**
+     * @return the client
+     */
+    public ClientNodeModel getClient() {
+        return client;
+    }
+    /**
+     * @param client the client to set
+     */
+    public void setClient(ClientNodeModel client) {
+        this.client = client;
     }
     
     /**
@@ -75,11 +96,25 @@ public class PbftMsgModel {
         this.listServer = listServer;
     }
     
+    /**
+     * @return the pcm
+     */
+    public PbftContentModel getPcm() {
+        return pcm;
+    }
+    /**
+     * @param pcm the pcm to set
+     */
+    public void setPcm(PbftContentModel pcm) {
+        this.pcm = pcm;
+    }
+    
     @Override
     public String toString() {
         StringBuilder str = new StringBuilder();
-        str.append("[PbftMsg] msgType = " + msgType.toString() + ", server = " + server.toString()
-                + ", ap = " + ap.toString() + ", meta = " + meta.toString() + ", listServer = " + listServer.toString());
+        str.append("[PbftMsg] msgType = " + msgType.toString() + ", client = " + client.toString()
+                + ", server = " + server.toString() + ", ap = " + ap.toString() + ", meta = " + meta.toString()
+                + ", listServer = " + listServer.toString() + ", pcm = " + pcm.toString());
         return str.toString();
     }
     

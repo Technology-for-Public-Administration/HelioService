@@ -1,14 +1,18 @@
 package tech.feily.unistarts.heliostration.helioservice.p2p;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.java_websocket.WebSocket;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import tech.feily.unistarts.heliostration.helioservice.model.MetaModel;
+import tech.feily.unistarts.heliostration.helioservice.model.PbftMsgModel;
 import tech.feily.unistarts.heliostration.helioservice.model.ServerNodeModel;
 
 /**
@@ -30,6 +34,13 @@ public class SocketCache {
     private static MetaModel metaModel = new MetaModel();
     
     private static ServerNodeModel myself = new ServerNodeModel();
+    
+    public  static AtomicInteger ack = new AtomicInteger(-1);
+    public static Map<Integer, PbftMsgModel> ppre = Maps.newConcurrentMap();
+    public static Map<Integer, Integer> ppreNum = Maps.newConcurrentMap();
+    public static Map<Integer, PbftMsgModel> pre = Maps.newConcurrentMap();
+    public static Map<Integer, Integer> preNum = Maps.newConcurrentMap();
+    public static Map<Integer, PbftMsgModel> com = Maps.newConcurrentMap();
     
     /**
      * The current session permission information of all nodes is initialized according to the root node response.
