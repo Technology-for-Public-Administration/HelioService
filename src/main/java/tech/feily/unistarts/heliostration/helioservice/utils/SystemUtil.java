@@ -28,6 +28,7 @@ public class SystemUtil {
                 break;
             case service :
                 println("in  - [service]   | no  | @rootnode receive metadata & session credentials of all service nodes.");
+                println("    -             |     | " + msg.getMeta());            
                 break;
             case confirm :
                 println("in  - [confirm]   | no  | service node @" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
@@ -38,7 +39,8 @@ public class SystemUtil {
                         + " the other side probes my websocket, and I gets its WebSocket.");
                 break;
             case update :
-                println("in  - [detective] | no  | @rootnode node exit, root node update metadata of p2p network.");
+                println("in  - [update]    | no  | @rootnode node exit, root node update metadata of p2p network.");
+                println("    -             |     | " + msg.getMeta());   
                 break;
             default:
                 break;
