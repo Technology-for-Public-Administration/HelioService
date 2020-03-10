@@ -69,16 +69,16 @@ public class Pbft {
     }
 
     private void onCommit(WebSocket ws, PbftMsgModel msgs) {
+        System.out.println(comIsValid(msgs.getPcm()) + " " + containServer(msgs.getServer()));
         if (!comIsValid(msgs.getPcm()) || !containServer(msgs.getServer())) {
             return;
         }
         if (isFirstCom(msgs.getPcm())) {
             SocketCache.com.put(msgs.getPcm().getReqNum(), msgs);
             SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
-            System.out.println("in");
+        } else {
+            SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
         }
-        System.out.println("out");
-        SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
         if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
             PbftMsgModel ret = new PbftMsgModel();
             ret.setMsgType(MsgEnum.reply);
@@ -121,11 +121,12 @@ public class Pbft {
         /**
          * If this stage is processed for the first time.
          */
-        if (isFirstPre(msgs.getPcm())) {
+        if (isFirstPpre(msgs.getPcm())) {
             SocketCache.pre.put(msgs.getPcm().getReqNum(), msgs);
             SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), 0);
+        } else {
+            SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
         }
-        SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
         /**
          * If the conditions are met, proceed to the next stage.
          */
@@ -136,14 +137,15 @@ public class Pbft {
             snm.setServerId(SocketCache.getMyself().getServerId());
             msgs.setServer(snm);
             msgs.setAp(ap);
+            System.out.println(SocketCache.ppreNum.get(msgs.getPcm().getReqNum()));
             P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);
             return;
         }
     }
 
 
-    private boolean isFirstPre(PbftContentModel pcm) {
-        return !SocketCache.pre.containsKey(pcm.getReqNum()) && !SocketCache.preNum.containsKey(pcm.getReqNum());
+    private boolean isFirstPpre(PbftContentModel pcm) {
+        return !SocketCache.ppre.containsKey(pcm.getReqNum()) && !SocketCache.ppreNum.containsKey(pcm.getReqNum());
     }
 
     private boolean containServer(ServerNodeModel server) {

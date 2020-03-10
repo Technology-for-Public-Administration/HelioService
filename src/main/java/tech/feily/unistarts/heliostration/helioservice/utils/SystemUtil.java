@@ -81,6 +81,9 @@ public class SystemUtil {
             case prepare :
                 println("out - [prepare]   | yes | @all $ broadcast prepare msg.");
                 break;
+            case commit :
+                println("out - [commit]    | yes | @all $ broadcast commit msg.");
+                break;
             case reply :
                 println("out - [reply]     | yes | client node @" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
                         + " $ send reply msg.");
