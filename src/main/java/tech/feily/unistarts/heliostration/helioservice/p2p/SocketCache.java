@@ -2,6 +2,7 @@ package tech.feily.unistarts.heliostration.helioservice.p2p;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,11 +37,17 @@ public class SocketCache {
     private static ServerNodeModel myself = new ServerNodeModel();
     
     public  static AtomicInteger ack = new AtomicInteger(-1);
+    
     public static Map<Integer, PbftMsgModel> ppre = Maps.newConcurrentMap();
     public static Map<Integer, Integer> ppreNum = Maps.newConcurrentMap();
     public static Map<Integer, PbftMsgModel> pre = Maps.newConcurrentMap();
     public static Map<Integer, Integer> preNum = Maps.newConcurrentMap();
     public static Map<Integer, PbftMsgModel> com = Maps.newConcurrentMap();
+    
+    public static Map<Integer, Boolean> ppreIsDone = Maps.newConcurrentMap();
+    public static Map<Integer, Boolean> preIsDone = Maps.newConcurrentMap();
+    public static Map<Integer, Queue<PbftMsgModel>> preQue = Maps.newConcurrentMap();
+    public static Map<Integer, Queue<PbftMsgModel>> comQue = Maps.newConcurrentMap();
     
     /**
      * The current session permission information of all nodes is initialized according to the root node response.
