@@ -75,18 +75,31 @@ public class Pbft {
         if (isFirstCom(msgs.getPcm())) {
             SocketCache.com.put(msgs.getPcm().getReqNum(), msgs);
             SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
+            System.out.println("in");
         }
+        System.out.println("out");
         SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
         if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
             PbftMsgModel ret = new PbftMsgModel();
             ret.setMsgType(MsgEnum.reply);
             ret.setAp(ap);
-            P2pClientEnd.connect(this, "ws:/" + msgs.getPcm().getAp().getAddr() + ":" + msgs.getPcm().getAp().getPort(), gson.toJson(ret), ret);
+            msgs.setMsgType(MsgEnum.reply);
+            msgs.setAp(msgs.getPcm().getAp());
+            P2pClientEnd.connect(this, "ws:/" + msgs.getPcm().getAp().getAddr() + ":" + msgs.getPcm().getAp().getPort(), gson.toJson(ret), msgs);
             SocketCache.ack.set(msgs.getPcm().getReqNum());
+            remove(msgs);
             return;
         }
     }
 
+    private void remove(PbftMsgModel msgs) {
+        SocketCache.ppre.remove(msgs.getPcm().getReqNum());
+        SocketCache.ppreNum.remove(msgs.getPcm().getReqNum());
+        SocketCache.pre.remove(msgs.getPcm().getReqNum());
+        SocketCache.preNum.remove(msgs.getPcm().getReqNum());
+        SocketCache.com.remove(msgs.getPcm().getReqNum());
+    }
+    
     private boolean isFirstCom(PbftContentModel pcm) {
         return !SocketCache.com.containsKey(pcm.getReqNum());
     }
@@ -194,7 +207,8 @@ public class Pbft {
         msg.setMsgType(MsgEnum.confirm);
         msg.setAp(ap);
         msgs.setMsgType(MsgEnum.confirm);
-        P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
+        P2pServerEnd.sendMsg(ws, gson.toJson(msg), msgs);
+        //P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
     }
 
     private void onService(WebSocket ws, PbftMsgModel msgs) {
@@ -255,16 +269,32 @@ public class Pbft {
         /**
          * Send probe information to the specified address (client).
          */
+        PbftMsgModel msg = new PbftMsgModel();
+        msg.setMsgType(MsgEnum.detective);
+        msg.setAp(ap);
+        if (msgs.getApm() != null) {
+            for (AddrPortModel apm : msgs.getApm()) {
+                if (apm.getAddr().equals(ap.getAddr()) && apm.getPort() == ap.getPort()) {
+                    continue;
+                } else {
+                    msgs.setMsgType(MsgEnum.detective);
+                    msgs.setAp(apm);
+                    P2pClientEnd.connect(this, "ws:/" + apm.getAddr() + ":" + apm.getPort(), gson.toJson(msg), msgs);
+                }
+            }
+        } else {
+            msgs.setMsgType(MsgEnum.detective);
+            msgs.setAp(msgs.getAp());
+            P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
+        }
+        /**
+         * 
         if (msgs.getAp().getAddr().equals(ws.getLocalSocketAddress().getAddress().toString())
                 && msgs.getAp().getPort() == ap.getPort()) {
             SystemUtil.println(msgs);
             return;
         }
-        PbftMsgModel msg = new PbftMsgModel();
-        msg.setMsgType(MsgEnum.detective);
-        msg.setAp(ap);
-        msgs.setMsgType(MsgEnum.detective);
-        P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
+         */
     }
 
 }

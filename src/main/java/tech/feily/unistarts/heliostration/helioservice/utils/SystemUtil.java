@@ -43,9 +43,20 @@ public class SystemUtil {
             case prePrepare :
                 println("in  - [prepre]    | yes | @rootnode $ receive pre-prepare msg.");
                 break;
+            case prepare :
+                println("in  - [prepare]   | yes | service node@" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
+                         + " $ receive prepare msg.");
+                break;
+            case commit :
+                println("in  - [commit]    | yes | service node@" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
+                         + " $ receive commit msg.");
+                break;/*
+            case prepare :
+                println("in  - [prepare]   | yes | @all $ receive prepare msg.");
+                break;
             case commit :
                 println("in  - [commit]    | yes | @all $ receive commit msg.");
-                break;
+                break;*/
             default:
                 break;
         }
