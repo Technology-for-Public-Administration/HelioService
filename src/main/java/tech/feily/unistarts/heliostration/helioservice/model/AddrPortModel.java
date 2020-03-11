@@ -1,5 +1,11 @@
 package tech.feily.unistarts.heliostration.helioservice.model;
 
+/**
+ * Address and port model of node server。
+ * 
+ * @author Feily Zhang
+ * @version v0.1
+ */
 public class AddrPortModel {
 
     private String addr;
@@ -17,7 +23,6 @@ public class AddrPortModel {
     public void setAddr(String addr) {
         this.addr = addr;
     }
-
 
     /**
      * @return the port

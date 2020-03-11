@@ -24,19 +24,14 @@ import tech.feily.unistarts.heliostration.helioservice.model.ServerNodeModel;
  */
 public class SocketCache {
     
-    /**
-     * Cache all ws connected to this root node.
-     */
+    // Cache all ws connected to this root node.
     public static Set<WebSocket> wss = Sets.newConcurrentHashSet();
-
-    /**
-     * Cache network state, initialized according to root node response.
-     */
+    // Cache network state, initialized according to root node response.
     private static MetaModel metaModel = new MetaModel();
-    
+    // Cache own permission information.
     private static ServerNodeModel myself = new ServerNodeModel();
-    
-    public  static AtomicInteger ack = new AtomicInteger(-1);
+    // Maximum confirmation number of pbft consensus stage.
+    public static AtomicInteger ack = new AtomicInteger(-1);
     
     public static Map<Integer, Integer> ppreNum = Maps.newConcurrentMap();
     public static Map<Integer, Integer> preNum = Maps.newConcurrentMap();

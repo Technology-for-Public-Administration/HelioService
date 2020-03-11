@@ -19,13 +19,14 @@ import tech.feily.unistarts.heliostration.helioservice.utils.SystemUtil;
  * @version v0.1
  */
 public class P2pClientEnd {
-
-    //private static Logger log = Logger.getLogger(P2pClientEnd.class);
     
     /**
-     * Client connects to a server.
+     * Client connects to a node server.
      * 
-     * @param wsUrl - server's url.
+     * @param pbft Pbft consensus algorithm instance.
+     * @param wsUrl Target URL.
+     * @param msg Message entity.
+     * @param pm Parameters for console output.
      */
     public static void connect(final Pbft pbft, final String wsUrl, final String msg, final PbftMsgModel pm) {
         try {
@@ -62,23 +63,25 @@ public class P2pClientEnd {
             SystemUtil.printlnClientCloseOrError(psm, wsUrl);
         }
     }
-
+    
     /**
+     * 
      * The method of sending a message to a server.
      * 
-     * @param ws - websocket
-     * @param msg - Messages to send.
+     * @param ws WebSocket.
+     * @param msg Messages to send.
+     * @param pm Parameters for console output.
      */
     public static void sendMsg(WebSocket ws, String msg, PbftMsgModel pm) {
         ws.send(msg);
         SystemUtil.printlnOut(pm);
     }
 
-
     /**
      * The method of broadcasting a massage to all server.
      * 
      * @param msg - Messages to send.
+     * @param pm Parameters for console output.
      */
     public static void broadcast(String msg, PbftMsgModel pm) {
         if (SocketCache.wss.size() == 0 || msg == null || msg.equals("")) {

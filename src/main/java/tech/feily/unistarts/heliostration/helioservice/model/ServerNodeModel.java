@@ -1,5 +1,11 @@
 package tech.feily.unistarts.heliostration.helioservice.model;
 
+/**
+ * Service node permission verification class.
+ * 
+ * @author Feily Zhang
+ * @version v0.1
+ */
 public class ServerNodeModel {
 
     private String serverId;

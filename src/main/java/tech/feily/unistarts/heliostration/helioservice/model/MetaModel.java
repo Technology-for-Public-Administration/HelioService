@@ -1,5 +1,11 @@
 package tech.feily.unistarts.heliostration.helioservice.model;
 
+/**
+ * P2P network metadata model。
+ * 
+ * @author Feily Zhang
+ * @version v0.1
+ */
 public class MetaModel {
 
     private int size;

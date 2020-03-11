@@ -21,8 +21,8 @@ public class P2pServerEnd {
     /**
      * The method of starting node service in P2P network(as server).
      * 
-     * @param pbft
-     * @param port
+     * @param pbft Pbft consensus algorithm instance.
+     * @param port Port on which the server listens.
      */
     public static void run(final Pbft pbft, int port) {
         final WebSocketServer socketServer = new WebSocketServer(new InetSocketAddress(port)) {
@@ -36,9 +36,9 @@ public class P2pServerEnd {
 
             @Override
             public void onClose(WebSocket ws, int code, String reason, boolean remote) {
-                /**
-                 * In order to preventing metadata of the P2P network from decreasing repeatly, nothing to do here.
-                 */
+                if (SocketCache.wss.contains(ws)) {
+                    SocketCache.wss.remove(ws);
+                }
             }
 
             @Override
@@ -48,14 +48,13 @@ public class P2pServerEnd {
 
             @Override
             public void onError(WebSocket ws, Exception ex) {
-                /**
-                 * In order to preventing metadata of the P2P network from decreasing repeatly, nothing to do here.
-                 */
+                if (SocketCache.wss.contains(ws)) {
+                    SocketCache.wss.remove(ws);
+                }
             }
 
             @Override
             public void onStart() {
-                //log.info("Server start successfully!");
                 System.out.println("Server start successfully!");
                 System.out.println("------------------------------------------------------------------------------------");
                 SystemUtil.printHead();
@@ -63,7 +62,6 @@ public class P2pServerEnd {
             
         };
         socketServer.start();
-        //log.info("server listen port " + port);
         System.out.println("Service node starting...");
         System.out.println("server listen port " + port);
     }
@@ -73,6 +71,7 @@ public class P2pServerEnd {
      * 
      * @param ws - websocket
      * @param msg - Messages to send.
+     * @param pm Parameters for console output.
      */
     public static void sendMsg(WebSocket ws, String msg, PbftMsgModel pm) {
         ws.send(msg);
@@ -83,6 +82,7 @@ public class P2pServerEnd {
      * The method of broadcasting a massage to all nodes.
      * 
      * @param msg - Messages to send.
+     * @param pm Parameters for console output.
      */
     public static void broadcasts(String msg, PbftMsgModel pm) {
         if (SocketCache.wss.size() == 0 || msg == null || msg.equals("")) {
