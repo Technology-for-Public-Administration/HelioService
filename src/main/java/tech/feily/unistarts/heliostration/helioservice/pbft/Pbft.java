@@ -18,6 +18,12 @@ import tech.feily.unistarts.heliostration.helioservice.p2p.SocketCache;
 import tech.feily.unistarts.heliostration.helioservice.utils.SHAUtil;
 import tech.feily.unistarts.heliostration.helioservice.utils.SystemUtil;
 
+/**
+ * Construction of P2P network and implementation of pbft algorithm.
+ * 
+ * @author Feily Zhang
+ * @version v0.1
+ */
 public class Pbft {
 
     private Gson gson = new Gson();
@@ -34,8 +40,6 @@ public class Pbft {
     }
     
     public void handle(WebSocket ws, String msg) {
-        //log.info("From " + ws.getRemoteSocketAddress().getAddress().toString() + ":"
-                //+ ws.getRemoteSocketAddress().getPort() + ", message is " + msg);
         PbftMsgModel msgs = gson.fromJson(msg, PbftMsgModel.class);
         SystemUtil.printlnIn(msgs);
         switch (msgs.getMsgType()) {
@@ -71,17 +75,24 @@ public class Pbft {
         }
     }
 
-    private void onCommit(WebSocket ws, PbftMsgModel msgs, boolean isThis) {
-        if (!isThis) {
-            System.out.println("commit here, false");
-            /**
-             * 如果数据和权限层面有问题，直接拒绝
-             */
+    /**
+     * This method processes commit messages.
+     * 
+     * @param ws WebSocket of Sender.
+     * @param msgs Message Entity.
+     * @param isCall Whether it belongs to method call.
+     */
+    private void onCommit(WebSocket ws, PbftMsgModel msgs, boolean isCall) {
+        // If it is triggered by an event, enter the branch.
+        if (!isCall) {
+            // If the message is illegal, or the other node does not have permission, reject it directly.
             if (!comIsValid(msgs.getPcm()) || !containServer(msgs.getServer())) {
                 return;
             }
-            /**
-             * 如果该请求号在本节点尚未出现，那么先将该请求号的第一条commit消息缓存，然后设置该请求号的pre阶段尚未处理完毕
+            /*
+             * If the request number of commit message has not appeared in SocketCache.preIsDone, 
+             * then this node is very slow and has not executed the statement of setting socketcache.preisdone.
+             * Then cache the message and set the request number of prepare message of SocketCache.preIsDone to false.
              */
             if (!SocketCache.preIsDone.containsKey(msgs.getPcm().getReqNum())) {
                 Queue<PbftMsgModel> que = Queues.newConcurrentLinkedQueue();
@@ -89,148 +100,96 @@ public class Pbft {
                 SocketCache.comQue.put(msgs.getPcm().getReqNum(), que);
                 SocketCache.preIsDone.put(msgs.getPcm().getReqNum(), false);
                 return;
-            /**
-             * 这个分支说明该请求号在该节点尚未处理完毕时，其余节点发来了非第一条消息，继续缓存
-             */
             } else if (SocketCache.preIsDone.get(msgs.getPcm().getReqNum()) == false) {
                 Queue<PbftMsgModel> que = SocketCache.comQue.get(msgs.getPcm().getReqNum());
                 que.add(msgs);
                 SocketCache.comQue.put(msgs.getPcm().getReqNum(), que);
                 return;
             }
-            System.out.println("commit here, false, lalala");
-            /**
-             * 到了这里，那么说明该请求号已经在该节点处理完毕了，那么在缓存队列不为空的情况下先处理队列，然后处理新发来的消息
+            /*
+             * If it is executed here, the prepare stage of the request number of this node has been completely executed.
+             * In other words, in the prepare stage, the SocketCache.preIsDone has been set to true.
+             * Then the new prepare message will not enter the above branch.
+             * The message is processed before the cache is processed.
              */
-            Queue<PbftMsgModel> que = SocketCache.comQue.get(msgs.getPcm().getReqNum());
-            if (que != null) {
-                while (!que.isEmpty()) {
-                    /**
-                     * 如果是ppre中的第一个。那么先放进入，再将ppreNum置0，否则，直接加即可
-                     */
-                    if (isFirstCom(msgs.getPcm())) {
-                        SocketCache.com.put(msgs.getPcm().getReqNum(), msgs);
-                        SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
-                    } else {
-                        SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
-                    }
-                    /**
-                     * 这里只是为了计数，因为直接释放即可
-                     */
-                    que.poll();
-                }
-            }
-            /**
-             * 执行到这里存在两种情况
-             * 一种是que队列有元素，但是已经处理完了
-             * 另一种情况是que队列没元素（为null），也就是说这个请求号本节点处理的很快，其余节点的消息只来了这一个，也就是第一个
-             * 一样需要先判断
-             */
-            if (isFirstCom(msgs.getPcm())) {
-                SocketCache.com.put(msgs.getPcm().getReqNum(), msgs);
-                SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
-            } else {
-                SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
-            }
-            /**
-             * 如果满足进入下一阶段的条件，就直接单播reply消息
-             */
-            if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
-                PbftMsgModel ret = new PbftMsgModel();
-                ret.setMsgType(MsgEnum.reply);
-                ret.setAp(ap);
-                msgs.setMsgType(MsgEnum.reply);
-                msgs.setAp(msgs.getPcm().getAp());
-                P2pClientEnd.connect(this, "ws:/" + msgs.getPcm().getAp().getAddr() + ":" + msgs.getPcm().getAp().getPort(), gson.toJson(ret), msgs);
-                SocketCache.ack.set(msgs.getPcm().getReqNum());
-                remove(msgs);
-            }
+            SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
         } else {
-            System.out.println("commit here, true");
-            /**
-             * 如果是这种情况，那么说明该节点是第一个处理完该请求号的pre阶段的，但是由于是方法调用而非事件触发，所以不能继续执行，直接退出
+            /*
+             * If the queue is found to be empty after the method is called, 
+             * then the current node is faster than any other node.
+             * Since there is no actual message, it returns directly.
              */
-            if (isFirstCom(msgs.getPcm())) {
+            if (SocketCache.comQue.get(msgs.getPcm().getReqNum()) == null) {
                 return;
             }
-            /**
-             * 到了这里，那么说明该请求号已经在该节点处理完毕了，那么在缓存队列不为空的情况下先处理队列，然后处理新发来的消息
-             */
-            Queue<PbftMsgModel> que = SocketCache.comQue.get(msgs.getPcm().getReqNum());
-            if (que != null) {
-                while (!que.isEmpty()) {
-                    /**
-                     * 如果是ppre中的第一个。那么先放进入，再将ppreNum置0，否则，直接加即可
-                     */
-                    if (isFirstCom(msgs.getPcm())) {
-                        SocketCache.com.put(msgs.getPcm().getReqNum(), msgs);
-                        SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
-                    } else {
-                        SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + 1);
-                    }
-                    /**
-                     * 这里只是为了计数，因为直接释放即可
-                     */
-                    que.poll();
-                }
-            }
-            /**
-             * 如果满足进入下一阶段的条件，就直接单播reply消息
-             */
-            if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
-                PbftMsgModel ret = new PbftMsgModel();
-                ret.setMsgType(MsgEnum.reply);
-                ret.setAp(ap);
-                msgs.setMsgType(MsgEnum.reply);
-                msgs.setAp(msgs.getPcm().getAp());
-                P2pClientEnd.connect(this, "ws:/" + msgs.getPcm().getAp().getAddr() + ":" + msgs.getPcm().getAp().getPort(), gson.toJson(ret), msgs);
-                SocketCache.ack.set(msgs.getPcm().getReqNum());
-                remove(msgs);
-            }
+        }
+        Queue<PbftMsgModel> que = SocketCache.comQue.get(msgs.getPcm().getReqNum());
+        if (que != null) {
+            SocketCache.preNum.put(msgs.getPcm().getReqNum(), SocketCache.preNum.get(msgs.getPcm().getReqNum()) + que.size());
+            que.clear();
+            SocketCache.comQue.put(msgs.getPcm().getReqNum(), que);
+        }
+        // Send messages to client if consensus conditions are met.
+        if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
+            PbftMsgModel ret = new PbftMsgModel();
+            ret.setMsgType(MsgEnum.reply);
+            ret.setAp(ap);  // Tell other nodes who the information comes from.
+            msgs.setMsgType(MsgEnum.reply);
+            msgs.setAp(msgs.getPcm().getAp());  // to who.
+            P2pClientEnd.connect(this, "ws:/" + msgs.getPcm().getAp().getAddr() + ":" + msgs.getPcm().getAp().getPort(), gson.toJson(ret), msgs);
+            SocketCache.ack.set(msgs.getPcm().getReqNum()); // Update the maximum confirmation number(ack) of this node.
+            remove(msgs);   // Remove all queue elements for the current message request number.
         }
 
     }
 
+    /**
+     * Remove element of request number.
+     * 
+     * @param msgs Message entity.
+     */
     private void remove(PbftMsgModel msgs) {
-        SocketCache.ppre.remove(msgs.getPcm().getReqNum());
         SocketCache.ppreNum.remove(msgs.getPcm().getReqNum());
-        SocketCache.pre.remove(msgs.getPcm().getReqNum());
         SocketCache.preNum.remove(msgs.getPcm().getReqNum());
-        SocketCache.com.remove(msgs.getPcm().getReqNum());
         SocketCache.ppreIsDone.remove(msgs.getPcm().getReqNum());
         SocketCache.preIsDone.remove(msgs.getPcm().getReqNum());
         SocketCache.preQue.remove(msgs.getPcm().getReqNum());
         SocketCache.comQue.remove(msgs.getPcm().getReqNum());
     }
-    
-    private boolean isFirstCom(PbftContentModel pcm) {
-        return !SocketCache.com.containsKey(pcm.getReqNum());
-    }
 
+    /**
+     * Determine whether the commit message from the other service node is legal. Mainly include:
+     *  1. Whether the data hash value is correct, because data may be corrupted during transmission;
+     *  2. Whether the view is correct;
+     *  3. Whether the request number of this pbft message is greater than the confirmation number(ack) of the current node.
+     * 
+     * @param pcm The core model of pbft message.
+     * @return true or false.
+     */
     private boolean comIsValid(PbftContentModel pcm) {
         return SHAUtil.sha256BasedHutool(pcm.getTransaction().toString()).equals(pcm.getDigest())
                 && pcm.getViewNum() == SocketCache.getMeta().getView()
-                //&& SocketCache.pre.containsKey(pcm.getReqNum())
                 && pcm.getReqNum() > SocketCache.ack.get();
     }
 
     /**
-     * 一种极端情况是本请求号所有的消息均早于当前处理到达，所以必须自身触发
+     * This method processes prepare messages.
      * 
-     * @param ws
-     * @param msgs
-     * @param isThis
+     * @param ws WebSocket of Sender.
+     * @param msgs Message Entity.
+     * @param isCall Whether it belongs to method call.
      */
-    private void onPrepare(WebSocket ws, PbftMsgModel msgs, boolean isThis) {
-        if (!isThis) {
-            /**
-             * 如果数据和权限层面有问题，直接拒绝
-             */
+    private void onPrepare(WebSocket ws, PbftMsgModel msgs, boolean isCall) {
+        // If it is triggered by an event, enter the branch.
+        if (!isCall) {
+            // If the message is illegal, or the other node does not have permission, reject it directly.
             if (!preIsValid(msgs.getPcm()) || !containServer(msgs.getServer())) {
                 return;
             }
-            /**
-             * 如果该请求号在本节点尚未出现，那么先将该请求号的第一条prepare消息缓存，然后设置该请求号的ppre阶段尚未处理完毕
+            /*
+             * If the request number of prepare message has not appeared in SocketCache.ppreIsDone, 
+             * then this node is very slow and has not executed the statement of setting socketcache.ppreisdone.
+             * Then cache the message and set the request number of prepare message of SocketCache.ppreIsDone to false.
              */
             if (!SocketCache.ppreIsDone.containsKey(msgs.getPcm().getReqNum())) {
                 Queue<PbftMsgModel> que = Queues.newConcurrentLinkedQueue();
@@ -238,109 +197,63 @@ public class Pbft {
                 SocketCache.preQue.put(msgs.getPcm().getReqNum(), que);
                 SocketCache.ppreIsDone.put(msgs.getPcm().getReqNum(), false);
                 return;
-            /**
-             * 这个分支说明该请求号在该节点尚未处理完毕时，其余节点发来了非第一条消息，继续缓存
+            /*
+             * If the request number of prepare message has appeared in SocketCache.ppreIsDone, but is false,
+             * Then add it to the cache and return.
              */
             } else if (SocketCache.ppreIsDone.get(msgs.getPcm().getReqNum()) == false) {
                 Queue<PbftMsgModel> que = SocketCache.preQue.get(msgs.getPcm().getReqNum());
                 que.add(msgs);
                 SocketCache.preQue.put(msgs.getPcm().getReqNum(), que);
                 return;
-            }
-            /**
-             * 到了这里，那么说明该请求号已经在该节点处理完毕了，那么在缓存队列不为空的情况下先处理队列，然后处理新发来的消息
+            }           
+            /*
+             * If it is executed here, the prepre stage of the request number of this node has been completely executed.
+             * In other words, in the prepre stage, the SocketCache.ppreIsDone has been set to true.
+             * Then the new prepare message will not enter the above branch.
+             * The message is processed before the cache is processed.
              */
-            Queue<PbftMsgModel> que = SocketCache.preQue.get(msgs.getPcm().getReqNum());
-            if (que != null) {
-                while (!que.isEmpty()) {
-                    /**
-                     * 如果是ppre中的第一个。那么先放进入，再将ppreNum置0，否则，直接加即可
-                     */
-                    if (isFirstPpre(msgs.getPcm())) {
-                        SocketCache.pre.put(msgs.getPcm().getReqNum(), msgs);
-                        SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), 0);
-                    } else {
-                        SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
-                    }
-                    /**
-                     * 这里只是为了计数，因为直接释放即可
-                     */
-                    que.poll();
-                }
-            }
-            /**
-             * 执行到这里存在两种情况
-             * 一种是que队列有元素，但是已经处理完了
-             * 另一种情况是que队列没元素（为null），也就是说这个请求号本节点处理的很快，其余节点的消息只来了这一个，也就是第一个
-             * 一样需要先判断
-             */
-            if (isFirstPpre(msgs.getPcm())) {
-                SocketCache.pre.put(msgs.getPcm().getReqNum(), msgs);
-                SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), 0);
-            } else {
-                SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
-            }
-            /**
-             * 如果满足进入下一阶段的条件，就直接广播commit消息
-             */
-            if (SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) > 2 * SocketCache.getMeta().getMaxf()) {
-                msgs.setMsgType(MsgEnum.commit);
-                ServerNodeModel snm = new ServerNodeModel();
-                snm.setAccessKey(SocketCache.getMyself().getAccessKey());
-                snm.setServerId(SocketCache.getMyself().getServerId());
-                msgs.setServer(snm);
-                msgs.setAp(ap);
-                P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);
-                /**
-                 * 由于已经广播，那么直接设置该请求号的pre阶段本阶段已经处理完毕
-                 */
-                SocketCache.preIsDone.put(msgs.getPcm().getReqNum(), true);
-                onCommit(ws, msgs, true);
-            }
+            SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
         } else {
-            if (isFirstPpre(msgs.getPcm())) {
+            /*
+             * If the queue is found to be empty after the method is called, 
+             * then the current node is faster than any other node.
+             * Since there is no actual message, it returns directly.
+             */
+            if (SocketCache.preQue.get(msgs.getPcm().getReqNum()) == null) {
                 return;
             }
-            Queue<PbftMsgModel> que = SocketCache.preQue.get(msgs.getPcm().getReqNum());
-            if (que != null) {
-                while (!que.isEmpty()) {
-                    /**
-                     * 如果是ppre中的第一个。那么先放进入，再将ppreNum置0，否则，直接加即可
-                     */
-                    if (isFirstPpre(msgs.getPcm())) {
-                        SocketCache.pre.put(msgs.getPcm().getReqNum(), msgs);
-                        SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), 0);
-                    } else {
-                        SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + 1);
-                    }
-                    /**
-                     * 这里只是为了计数，因为直接释放即可
-                     */
-                    que.poll();
-                }
-            }
-            if (SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) > 2 * SocketCache.getMeta().getMaxf()) {
-                msgs.setMsgType(MsgEnum.commit);
-                ServerNodeModel snm = new ServerNodeModel();
-                snm.setAccessKey(SocketCache.getMyself().getAccessKey());
-                snm.setServerId(SocketCache.getMyself().getServerId());
-                msgs.setServer(snm);
-                msgs.setAp(ap);
-                P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);
-                /**
-                 * 由于已经广播，那么直接设置该请求号的pre阶段本阶段已经处理完毕
-                 */
-                SocketCache.preIsDone.put(msgs.getPcm().getReqNum(), true);
-                onCommit(ws, msgs, true);
-            }
+        }
+        Queue<PbftMsgModel> que = SocketCache.preQue.get(msgs.getPcm().getReqNum());
+        if (que != null) {
+            SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) + que.size());
+            que.clear();
+            SocketCache.preQue.put(msgs.getPcm().getReqNum(), que);
+        }
+        // Broadcast messages if consensus conditions are met.
+        if (SocketCache.ppreNum.get(msgs.getPcm().getReqNum()) > 2 * SocketCache.getMeta().getMaxf()) {
+            msgs.setMsgType(MsgEnum.commit);
+            ServerNodeModel snm = new ServerNodeModel();
+            snm.setAccessKey(SocketCache.getMyself().getAccessKey());
+            snm.setServerId(SocketCache.getMyself().getServerId());
+            // Set my permission info so that I can pass the permission verification of other service nodes.
+            msgs.setServer(snm);
+            msgs.setAp(ap); // Tell other nodes who the information comes from.
+            P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);
+            // Because the message has been broadcast, the pre stage is finished.
+            SocketCache.preNum.put(msgs.getPcm().getReqNum(), 1);
+            SocketCache.preIsDone.put(msgs.getPcm().getReqNum(), true);
+            // As in the prepre stage, make a method call.
+            onCommit(ws, msgs, true);
         }
     }
 
-
-    private boolean isFirstPpre(PbftContentModel pcm) {
-        return !SocketCache.ppre.containsKey(pcm.getReqNum()) && !SocketCache.ppreNum.containsKey(pcm.getReqNum());
-    }
-
+    /**
+     * This method determines whether a node has permission to participate in the pbft consensus process.
+     * 
+     * @param server Permission information of service node.
+     * @return true or false.
+     */
     private boolean containServer(ServerNodeModel server) {
         for (ServerNodeModel ser : SocketCache.listServer) {
             if (ser.getAccessKey().equals(server.getAccessKey())
@@ -351,147 +264,196 @@ public class Pbft {
         return false;
     }
 
+    /**
+     * Determine whether the prepare message from the other service node is legal. Mainly include:
+     *  1. Whether the data hash value is correct, because data may be corrupted during transmission;
+     *  2. Whether the view is correct;
+     *  3. Whether the request number of this pbft message is greater than the confirmation number(ack) of the current node.
+     * 
+     * @param pcm The core model of pbft message.
+     * @return true or false.
+     */
     private boolean preIsValid(PbftContentModel pcm) {
         return SHAUtil.sha256BasedHutool(pcm.getTransaction().toString()).equals(pcm.getDigest())
                 && pcm.getViewNum() == SocketCache.getMeta().getView()
-                //&& SocketCache.ppre.containsKey(pcm.getReqNum())
                 && pcm.getReqNum() > SocketCache.ack.get();
     }
 
+    /**
+     * From here on, officially enter the pbft algorithm processing stage.
+     * Here, if pbft message(pre-prepare) is detected to be legal, the prepare message is encapsulated and broadcast.
+     * 
+     * The most important parameter is SocketCache.ppreIsDone, why is it?
+     * In my practice, I find that the order of messages is very important.
+     * If a message has not been processed in this node, other nodes have already processed messages of the same type,
+     * the method of the next message of this node will be triggered. Details are as follows:
+     * 
+     *  (1/7) The onPrePrepare method of this node is very slow to execute.
+     *  (2/7) If the pre-prepare message has not been put into the socketcache.ppre container,
+     *  (3/7) the message of the type of prepare broadcast by other nodes will not pass the data verification,
+     *  (4/7) and then the pre-prepare message of this method can not enter the prepare stage of pbft algorithm,
+     *  (5/7) because the prepare message of other nodes has already been sent, 
+     *  (6/7) or after entering the Prepare phase, due to the insufficient number of prepare messages received,
+     *  (7/7) the commit message cannot be broadcast, which results in the pbft consensus interruption.
+     * 
+     * @param ws WebSocket of sender(root node).
+     * @param msgs Message entity.
+     */
     private void onPrePrepare(WebSocket ws, PbftMsgModel msgs) {
+        // If the pre-prepare message is invalid, reject it.
         if (!ppreIsValid(msgs.getPcm())) {
             return;
         }
-        /**
-         * Then add current request to this node's ppre.
-         */
-        SocketCache.ppre.put(msgs.getPcm().getReqNum(), msgs);
+        // Here, the pre-prepare message is right, and add it into SocketCache.ppreNum.
         SocketCache.ppreNum.put(msgs.getPcm().getReqNum(), 0);
+        // Next, assemble the message of prepare type.
         msgs.setMsgType(MsgEnum.prepare);
         ServerNodeModel snm = new ServerNodeModel();
         snm.setAccessKey(SocketCache.getMyself().getAccessKey());
         snm.setServerId(SocketCache.getMyself().getServerId());
+        // Set my permission info so that I can pass the permission verification of other service nodes.
         msgs.setServer(snm);
-        msgs.setAp(ap);
-        P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);
+        msgs.setAp(ap);    // Tell other nodes who the information comes from.
+        P2pServerEnd.broadcasts(gson.toJson(msgs), msgs);   // Broadcast messages all over the network.
+        // Set the SocketCache.ppreIsDone of the current request number to true, 
+        // which means the ppre stage of the current request number has been completed.
         SocketCache.ppreIsDone.put(msgs.getPcm().getReqNum(), true);
+        /*
+         * If the prepare message of nodes in the whole network has not been broadcast, this method call is not necessary.
+         * 
+         * However, if the prepare message of this node is broadcast last in the whole network, 
+         * it means that this node will not receive the prepare message from other nodes after that,
+         * then the prepare event of this node cannot be triggered,
+         * resulting in the interruption of the pbft algorithm process of the current pbft message request number of this node.
+         * 
+         * Therefore, in the prepre stage of this node, after setting SocketCache.ppreIsDone,
+         * you must call the prepare method once to prevent extreme situations.
+         * 
+         * However, this method call does not directly deliver pbft messages, so it must be identified by a boolean variable.
+         */
         onPrepare(ws, msgs, true);
     }
 
     /**
+     * Determine whether the pre-prepare message from the root node is legal. Mainly include:
+     *  1. Whether the data hash value is correct;
+     *  2. Whether the view is correct;
+     *  3. Whether the request number of this pbft message is greater than the confirmation number(ack) of the current node.
      * 
-     * @param pcm
-     * @return
+     * @param pcm The core model of pbft message.
+     * @return true or false.
      */
     private boolean ppreIsValid(PbftContentModel pcm) {
         return SHAUtil.sha256BasedHutool(pcm.getTransaction().toString()).equals(pcm.getDigest())
                 && pcm.getViewNum() == SocketCache.getMeta().getView()
-                && !SocketCache.ppre.containsKey(pcm.getReqNum())
-                && !SocketCache.ppreNum.containsKey(pcm.getReqNum())
                 && pcm.getReqNum() > SocketCache.ack.get();
     }
     
+    /**
+     * If a node exits P2P network for any reason, I can receive the latest network metadata from the root node.
+     * 
+     * @param ws WebSocket of sender(root node).
+     * @param msgs Message entity.
+     */
     private void onUpdate(WebSocket ws, PbftMsgModel msgs) {
-        /**
-         * We should first verify whether the detective message comes from the root node, and temporarily omit it.
-         */
-        SocketCache.setMeta(msgs.getMeta());
-        //System.out.println("meta缓存已更新" + SocketCache.getMeta().toString());
+        // We should first verify whether the detective message comes from the root node, and temporarily omit it.
+        SocketCache.setMeta(msgs.getMeta());    // Just save it.
     }
 
+    /**
+     * Receive detective requests from other nodes as the server of this node.
+     * Here I can save the client connection of the other party, so that I can broadcast messages to the other party.
+     * 
+     * @param ws WebSocket of sender.
+     * @param msgs Message entity.
+     */
     private void onDetective(WebSocket ws, PbftMsgModel msgs) {
         PbftMsgModel msg = new PbftMsgModel();
         msg.setMsgType(MsgEnum.confirm);
+        // Tell the other party that I sent this message.
         msg.setAp(ap);
+        // This next line is just to tell myself that this is a message to the other party,
+        // so that I can see it on the console.
         msgs.setMsgType(MsgEnum.confirm);
+        // Response the other party by it's WebSocket connection.
         P2pServerEnd.sendMsg(ws, gson.toJson(msg), msgs);
-        //P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
     }
 
+    /**
+     * Processing of the service message from the root node.
+     * Take out the permission infomation of all service nodes and set the matedata of P2P network.
+     * 
+     * @param ws WebSocket of sender(root node).
+     * @param msgs Message entity.
+     */
     private void onService(WebSocket ws, PbftMsgModel msgs) {
-        /**
-         * We should first verify whether the detective message comes from the root node, and temporarily omit it.
-         */
-        /**
-         * Get active node permission data and network metadata.
-         */
-        SocketCache.listServer = msgs.getListServer();
-        SocketCache.setMeta(msgs.getMeta());
-        //System.out.println(new Date() + SocketCache.listServer.toString());
-        //System.out.println(new Date() + SocketCache.getMeta().toString());
+        // We should first verify whether the detective message comes from the root node, and temporarily omit it.
+        SocketCache.listServer = msgs.getListServer();  // Get the permission info of all services node.
+        SocketCache.setMeta(msgs.getMeta());    // Get the metadata of P2P network.
     }
 
+    /**
+     * Processing of the init message from the root node.
+     * This is mainly to take out my accessKey and make a service request.
+     * 
+     * @param ws WebSocket of sender(root node).
+     * @param msgs Message entity.
+     */
     private void onInit(WebSocket ws, PbftMsgModel msgs) {
-        /**
-         * We should first verify whether the detective message comes from the root node, and temporarily omit it.
-         */
-        /**
-         * First obtain own accessKey.
-         */
+        // We should first verify whether the detective message comes from the root node, and temporarily omit it.
+        // First obtain my accessKey.
         SocketCache.setMyself(msgs.getServer());
-        /**
-         * Then assemble the service type message and request the P2P network information from the root node.
-         */
+        // Then assemble the service type message and request the P2P network information from the root node.
         PbftMsgModel toRoot = new PbftMsgModel();
         toRoot.setMsgType(MsgEnum.service);
         toRoot.setServer(SocketCache.getMyself());
-        toRoot.setAp(ap);
+        toRoot.setAp(ap);   // Tell the root node to send it to me.
         P2pServerEnd.sendMsg(ws, gson.toJson(toRoot), toRoot);
     }
 
     /**
-     * Processing of client confirm message.
+     * Processing of the confirm message.
      * 
-     * @param ws
-     * @param msgs
+     * @param ws WebSocket of sender.
+     * @param msgs Message entity.
      */
     private void onConfirm(WebSocket ws, PbftMsgModel msgs) {
-        /**
-         * Nothing to do, because we just want to acquire ws of client.
-         * When the client requests this node through the p2pclientend class, we have obtained the WS of the client.
+        /*
+         * Nothing to do, because we just want to acquire WebSocket of the other node.
          */
-        //System.out.println("Current P2P network metadata: " + SocketCache.getMeta().toString());
     }
 
     /**
-     * Probe client's ws for final receipt to it.
+     * Get WebSocket of the newly added node.
      * 
-     * @param ws
-     * @param msgs
+     * @param ws WebSocket of sender and it can be used here to determine whether the message is from the root node.
+     * @param msgs Message entity.
      */
     private void onNote(WebSocket ws, PbftMsgModel msgs) {
-        /**
-         * We should first verify whether the detective message comes from the root node, and temporarily omit it.
-         */
-        /**
-         * Send probe information to the specified address (client).
-         */
+        // We should first verify whether the detective message comes from the root node, and temporarily omit it.
         PbftMsgModel msg = new PbftMsgModel();
         msg.setMsgType(MsgEnum.detective);
-        msg.setAp(ap);
+        msg.setAp(ap);  // This parameter is my WebSocket, so that receiver can response me.
+        // If msgs.getApm() isn't null, it means that the newly added node is the current node.
+        // Then the root node must send the server address list of the existing node and one by one request them.
+        // So I can get a broadcast from them.
         if (msgs.getApm() != null) {
             for (AddrPortModel apm : msgs.getApm()) {
                 if (apm.getAddr().equals(ap.getAddr()) && apm.getPort() == ap.getPort()) {
                     continue;
                 } else {
                     msgs.setMsgType(MsgEnum.detective);
-                    msgs.setAp(apm);
+                    msgs.setAp(apm);    // to who.
                     P2pClientEnd.connect(this, "ws:/" + apm.getAddr() + ":" + apm.getPort(), gson.toJson(msg), msgs);
                 }
             }
+            // If msgs.getApm() is null, it means that the newly added node isn't the current node.
+            // Just request it so that I can receive its broadcast.
         } else {
             msgs.setMsgType(MsgEnum.detective);
-            msgs.setAp(msgs.getAp());
+            msgs.setAp(msgs.getAp());   // to who.
             P2pClientEnd.connect(this, "ws:/" + msgs.getAp().getAddr() + ":" + msgs.getAp().getPort(), gson.toJson(msg), msgs);
         }
-        /**
-         * 
-        if (msgs.getAp().getAddr().equals(ws.getLocalSocketAddress().getAddress().toString())
-                && msgs.getAp().getPort() == ap.getPort()) {
-            SystemUtil.println(msgs);
-            return;
-        }
-         */
     }
 
 }

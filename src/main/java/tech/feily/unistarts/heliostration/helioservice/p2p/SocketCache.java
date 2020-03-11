@@ -38,11 +38,8 @@ public class SocketCache {
     
     public  static AtomicInteger ack = new AtomicInteger(-1);
     
-    public static Map<Integer, PbftMsgModel> ppre = Maps.newConcurrentMap();
     public static Map<Integer, Integer> ppreNum = Maps.newConcurrentMap();
-    public static Map<Integer, PbftMsgModel> pre = Maps.newConcurrentMap();
     public static Map<Integer, Integer> preNum = Maps.newConcurrentMap();
-    public static Map<Integer, PbftMsgModel> com = Maps.newConcurrentMap();
     
     public static Map<Integer, Boolean> ppreIsDone = Maps.newConcurrentMap();
     public static Map<Integer, Boolean> preIsDone = Maps.newConcurrentMap();
