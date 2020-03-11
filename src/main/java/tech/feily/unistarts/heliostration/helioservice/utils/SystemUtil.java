@@ -4,18 +4,37 @@ import java.util.Date;
 
 import tech.feily.unistarts.heliostration.helioservice.model.PbftMsgModel;
 
+/**
+ * This class for console output.
+ * 
+ * @author Feily zhang
+ * @version v0.1
+ */
 public class SystemUtil {
 
+    /**
+     * If the target address of the broadcast received from the root node is itself, the method is output.
+     * 
+     * @param msg
+     */
     public static void println(PbftMsgModel msg) {
         println("    - []          | no  | service node @" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
                  + " $ this is my address, no need to probe.");
     }
     
+    /**
+     * Table head.
+     */
     public static void printHead() {
         System.out.println("  Time   |      MsgType      | Bc  |                     Details                     ");
         System.out.println("-------------------------------------------------------------------------------------");
     }
     
+    /**
+     * Execute this output when a message is received.
+     * 
+     * @param msg
+     */
     public static void printlnIn(PbftMsgModel msg) {
         switch (msg.getMsgType()) {
             case note :
@@ -50,18 +69,17 @@ public class SystemUtil {
             case commit :
                 println("in  - [commit]    | yes | service node@" + msg.getAp().getAddr() + ":" + msg.getAp().getPort()
                          + " $ receive commit msg.");
-                break;/*
-            case prepare :
-                println("in  - [prepare]   | yes | @all $ receive prepare msg.");
                 break;
-            case commit :
-                println("in  - [commit]    | yes | @all $ receive commit msg.");
-                break;*/
             default:
                 break;
         }
     }
 
+    /**
+     * Execute this output when a message is sent.
+     * 
+     * @param msg
+     */
     public static void printlnOut(PbftMsgModel msg) {
         switch (msg.getMsgType()) {
             case init :
@@ -93,6 +111,12 @@ public class SystemUtil {
         }
     }
     
+    /**
+     * This output is performed when a client error occurs or the connection is closed.
+     * 
+     * @param msg
+     * @param wsUrl
+     */
     public static void printlnClientCloseOrError(PbftMsgModel msg, String wsUrl) {
         switch (msg.getMsgType()) {
             case close :
@@ -109,6 +133,11 @@ public class SystemUtil {
         }
     }
     
+    /**
+     * Assembly time.
+     * 
+     * @param line
+     */
     @SuppressWarnings("deprecation")
     public static void println(String line) {
         Date date = new Date();

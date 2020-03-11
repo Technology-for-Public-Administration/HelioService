@@ -32,18 +32,23 @@ public class SocketCache {
     private static ServerNodeModel myself = new ServerNodeModel();
     // Maximum confirmation number of pbft consensus stage.
     public static AtomicInteger ack = new AtomicInteger(-1);
-    
+    // Cache number of prepare messages of a request number.
     public static Map<Integer, Integer> ppreNum = Maps.newConcurrentMap();
+    // Cache number of commit messages of a request number.
     public static Map<Integer, Integer> preNum = Maps.newConcurrentMap();
     
+    // Identify whether the prepre stage of a request number of the current node has been completed.
     public static Map<Integer, Boolean> ppreIsDone = Maps.newConcurrentMap();
+    // Identify whether the pre stage of a request number of the current node has been completed.
     public static Map<Integer, Boolean> preIsDone = Maps.newConcurrentMap();
+    // If the prepre stage of a request number of the current node hasn't been completed,
+    // then messages from other nodes cache here.
     public static Map<Integer, Queue<PbftMsgModel>> preQue = Maps.newConcurrentMap();
+    // If the prepare stage of a request number of the current node hasn't been completed,
+    // then messages from other nodes cache here.
     public static Map<Integer, Queue<PbftMsgModel>> comQue = Maps.newConcurrentMap();
     
-    /**
-     * The current session permission information of all nodes is initialized according to the root node response.
-     */
+    // The current session permission information of all nodes is initialized according to the root node response.
     public static List<ServerNodeModel> listServer = Lists.newArrayList();
     
     /**
@@ -52,7 +57,6 @@ public class SocketCache {
     public static ServerNodeModel getMyself() {
         return myself;
     }
-
     /**
      * @param myself the myself to set
      */
@@ -68,7 +72,6 @@ public class SocketCache {
     public static void setMeta(MetaModel meta) {
         SocketCache.metaModel = meta;
     }
-    
     /**
      * The following implements atomic operations for all MetaModels.
      */
@@ -78,6 +81,11 @@ public class SocketCache {
         }
     }
     
+    /**
+     * The following method updates the metaModel field according to msg of the root node.
+     * 
+     * @return
+     */
     public static MetaModel getAndIncre() {
         synchronized (SocketCache.class) {
             MetaModel meta = metaModel;
