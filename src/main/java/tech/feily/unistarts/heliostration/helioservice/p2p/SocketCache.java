@@ -51,6 +51,16 @@ public class SocketCache {
     // The current session permission information of all nodes is initialized according to the root node response.
     public static List<ServerNodeModel> listServer = Lists.newArrayList();
     
+    private static String previousHash = "00000000000000000000000000000000";
+    
+    public static synchronized void setPreviousHash(String previousHash) {
+        SocketCache.previousHash = previousHash;
+    }
+    
+    public static synchronized String getPreviousHash() {
+        return previousHash;
+    }
+    
     /**
      * @return the myself
      */

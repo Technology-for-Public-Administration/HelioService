@@ -8,6 +8,7 @@ import com.google.common.collect.Queues;
 import com.google.gson.Gson;
 
 import tech.feily.unistarts.heliostration.helioservice.model.AddrPortModel;
+import tech.feily.unistarts.heliostration.helioservice.model.BlockModel;
 import tech.feily.unistarts.heliostration.helioservice.model.MsgEnum;
 import tech.feily.unistarts.heliostration.helioservice.model.PbftContentModel;
 import tech.feily.unistarts.heliostration.helioservice.model.PbftMsgModel;
@@ -131,6 +132,9 @@ public class Pbft {
         }
         // Send messages to client if consensus conditions are met.
         if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
+            BlockModel block = Btc.beBlock(0, msgs.getPcm().getReqNum(), SocketCache.getPreviousHash(), msgs.getPcm().getTransaction());
+            SocketCache.setPreviousHash(block.getBlockHash());
+            System.out.println("\n" + gson.toJson(block) + "\n");
             PbftMsgModel ret = new PbftMsgModel();
             ret.setMsgType(MsgEnum.reply);
             ret.setAp(ap);  // Tell other nodes who the information comes from.
