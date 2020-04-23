@@ -134,11 +134,13 @@ public class Pbft {
         }
         // Send messages to client if consensus conditions are met.
         if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
-            BlockModel block = Btc.beBlock(0, msgs.getPcm().getReqNum(), SocketCache.getPreviousHash(), msgs.getPcm().getTransaction());
-            SocketCache.setPreviousHash(block.getBlockHash());
-            BlockChain.insert(PreCmd.getParam().get("docName"), gson.toJson(block));
+            if (!PreCmd.getParam().containsKey("hasDb")) {
+                BlockModel block = Btc.beBlock(0, msgs.getPcm().getReqNum(), SocketCache.getPreviousHash(), msgs.getPcm().getTransaction());
+                SocketCache.setPreviousHash(block.getBlockHash());
+                BlockChain.insert(PreCmd.getParam().get("docName"), gson.toJson(block));
+            }
             //System.out.println("\n" + gson.toJson(block) + "\n");
-            PbftMsgModel ret = new PbftMsgModel();
+            PbftMsgModel ret = msgs;
             ret.setMsgType(MsgEnum.reply);
             ret.setAp(ap);  // Tell other nodes who the information comes from.
             msgs.setMsgType(MsgEnum.reply);

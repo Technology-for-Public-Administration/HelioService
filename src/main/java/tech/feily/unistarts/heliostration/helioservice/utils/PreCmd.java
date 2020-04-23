@@ -30,11 +30,16 @@ public class PreCmd {
                 param.put(fields[2], temp.split(":")[0]);
                 param.put(fields[3], temp.split(":")[1]);
                 i++;
-            } else if (display[i].equals("DB & doc: ")  && dbIsValid(temp)) {
-                param.put(fields[4], temp.split("\\.")[0]);
-                param.put(fields[5], temp.split("\\.")[1]);
-                param.put(fields[6], temp.split("\\.")[2]);
-                i++;
+            } else if (display[i].equals("DB & doc: ")) {
+                if (temp.equals("none")) {
+                    param.put("hasDb", temp);
+                    i++;
+                } else if (dbIsValid(temp)) {
+                    param.put(fields[4], temp.split("\\.")[0]);
+                    param.put(fields[5], temp.split("\\.")[1]);
+                    param.put(fields[6], temp.split("\\.")[2]);
+                    i++;
+                }
             } else if (display[i].equals("Id & Key: ")){
                 param.put(fields[7], temp.split("&")[0]);
                 param.put(fields[8], temp.split("&")[1]);

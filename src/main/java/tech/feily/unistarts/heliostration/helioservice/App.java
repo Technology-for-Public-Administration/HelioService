@@ -20,7 +20,7 @@ import tech.feily.unistarts.heliostration.helioservice.utils.PreCmd;
 public class App {
     
     public static void main( String[] args ) throws Exception {
-        System.out.println("Welcome to the HelioChain platform.");
+        System.out.println("Welcome to the HelioChain platform(Service Node).");
         System.out.println("Current application version : Alpha 0.1.0.0423");
         System.out.println("This application is licensed through GNU General Public License version 3 (GPLv3).");
         System.out.println("Copyright \u00A92020 tpastd.com. All rights reserved.\n");
