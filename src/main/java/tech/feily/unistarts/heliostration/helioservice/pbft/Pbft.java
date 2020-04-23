@@ -17,6 +17,7 @@ import tech.feily.unistarts.heliostration.helioservice.p2p.P2pClientEnd;
 import tech.feily.unistarts.heliostration.helioservice.p2p.P2pServerEnd;
 import tech.feily.unistarts.heliostration.helioservice.p2p.SocketCache;
 import tech.feily.unistarts.heliostration.helioservice.utils.BlockChain;
+import tech.feily.unistarts.heliostration.helioservice.utils.PreCmd;
 import tech.feily.unistarts.heliostration.helioservice.utils.SHAUtil;
 import tech.feily.unistarts.heliostration.helioservice.utils.SystemUtil;
 
@@ -135,7 +136,7 @@ public class Pbft {
         if (SocketCache.preNum.get(msgs.getPcm().getReqNum()) >= (2 * SocketCache.getMeta().getMaxf() + 1)) {
             BlockModel block = Btc.beBlock(0, msgs.getPcm().getReqNum(), SocketCache.getPreviousHash(), msgs.getPcm().getTransaction());
             SocketCache.setPreviousHash(block.getBlockHash());
-            BlockChain.insert("chain", gson.toJson(block));
+            BlockChain.insert(PreCmd.getParam().get("docName"), gson.toJson(block));
             //System.out.println("\n" + gson.toJson(block) + "\n");
             PbftMsgModel ret = new PbftMsgModel();
             ret.setMsgType(MsgEnum.reply);

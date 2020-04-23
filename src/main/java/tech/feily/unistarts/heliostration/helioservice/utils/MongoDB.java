@@ -5,18 +5,20 @@ import com.mongodb.client.MongoDatabase;
 
 public final class MongoDB {
 
+    private static MongoDatabase mongoDatabase;
     
     private MongoDB() {
         
     }
     
-    private static class Holder {
-        private static MongoClient mongoClient = new MongoClient("localhost", 27017);
-        private static MongoDatabase mongoDatabase = mongoClient.getDatabase("helio"); 
-    }
-    
-    public static MongoDatabase getInstance() {
-        return Holder.mongoDatabase;
+    @SuppressWarnings("resource")
+    public static synchronized MongoDatabase getInstance(String ip, String db) {
+        if (mongoDatabase != null) {
+            return mongoDatabase;
+        }
+        MongoClient mongoClient = new MongoClient(ip, 27017);
+        mongoDatabase = mongoClient.getDatabase(db); 
+        return mongoDatabase;
     }
     
 }
